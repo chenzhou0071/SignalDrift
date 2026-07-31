@@ -107,8 +107,8 @@ SignalDrift/Assets/Scripts/
 - [ ] **Step 2: 失败测试 → 实现 → 提交**（模式同计划 2 Task 1：临时目录写样例 json，断言关键字段；`LoadConfig` 双文件读入+Unmarshal，校验 `width_cells*height_cells<=16384`（idx 要装进 14 位）否则报错）
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server
-git -C "E:\pro\unity(游戏)" commit -m "feat(battle): 战斗与地图配置定义与加载"
+git -C "E:\pro\SignalDrift" add server
+git -C "E:\pro\SignalDrift" commit -m "feat(battle): 战斗与地图配置定义与加载"
 ```
 
 ---
@@ -263,7 +263,7 @@ func (g *Grid) Snapshot() []byte {
 - [ ] **Step 3: 全绿提交**
 
 ```bash
-git -C "E:\pro\unity(游戏)" commit -am "feat(battle): Grid涂色矩阵/覆盖率/脏集合/RLE快照"
+git -C "E:\pro\SignalDrift" commit -am "feat(battle): Grid涂色矩阵/覆盖率/脏集合/RLE快照"
 ```
 
 ---
@@ -1034,13 +1034,14 @@ func TestInputAppliedAndRateLimited(t *testing.T) {
 **Files:**
 - Create: `Assets/Scripts/UI/BattleHud.cs`、`Assets/Scripts/UI/SettlePanel.cs`；Battle.unity 追加 UI
 
-**HUD 元素（数据全部来自 State/Settle 包）：**
+**HUD 元素（数据来自 State/Settle 包 + BattleContext 昵称）：**
+- 顶部两侧：双方昵称（左 `BattleContext.MyNickname` 青色 / 右 `BattleContext.OpponentNickname` 品红）
 - 顶部中央：双色占比条（两个 Image fillAmount= cov/10000）+ 数字百分比 + 剩余时间 mm:ss（leftTicks/30）
 - 左下：墨量条（自己 slot 的 ink/100），不足弹耗时闪红
 - 中央大字：倒计时（cdLeader!=0xFF 时显示"⚠ 对方即将获胜 N"或"胜利倒计时 N"，N=ceil(cdTicks 剩余/30)）
 - 被命中：全屏边缘泛红 0.3s（flags bit0）
 - **终局演出**（规格 2.7）：收到 Settle 后先播胜方颜色以其主塔为中心涌满全屏的动画（0.8s，用一个覆盖全屏的 Image 从塔位置放大 + 染胜方色），平局则双色从两塔对涌各占半屏，演出结束再淡入 SettlePanel
-- SettlePanel：收 MsgBattleSettle(JSON) 后弹出——胜负大字/最终占比/**占比变化曲线**（用 covHistory 逐点连线绘制到一张 RawImage，青/品红两条折线）/我的统计（涂色格数、双弹发射数、命中、反射、湮灭）/**ELO 变化**（收 MsgEloUpdate 推送填入，未到则显示"结算中…"）→【返回大厅】按钮 LoadScene("Lobby")
+- SettlePanel：收 MsgBattleSettle(JSON) 后弹出——胜方昵称+胜负大字（如"XXX 胜利"，根据 winner UID 映射 BattleContext 昵称）/最终占比/**占比变化曲线**（用 covHistory 逐点连线绘制到一张 RawImage，青/品红两条折线）/我的统计（涂色格数、双弹发射数、命中、反射、湮灭）/**ELO 变化**（收 MsgEloUpdate 推送填入，未到则显示"结算中…"）→【返回大厅】按钮 LoadScene("Lobby")
 - ELO 推送处理：注册 `MsgId.EloUpdate` handler，解析 `{old_elo,new_elo,delta}` 更新面板
 
 - [ ] **Step 1: 搭 UI + 实现两脚本**

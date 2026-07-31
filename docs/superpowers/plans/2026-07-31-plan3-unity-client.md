@@ -279,6 +279,8 @@ public static class MsgId
     public const ushort FriendListOK = 225;
     public const ushort ProfileReq = 230;
     public const ushort ProfileResp = 231;
+    public const ushort SetNickname = 232;
+    public const ushort SetNicknameOK = 233;
     public const ushort EloUpdate = 234;
     public const ushort ErrorResp = 299;
 }
@@ -355,13 +357,15 @@ using UnityEngine;
 [Serializable] public class RegisterReq { public string username; public string password; }
 [Serializable] public class RegisterResp { public int code; public long uid; }
 [Serializable] public class LoginReq { public string username; public string password; }
-[Serializable] public class LoginResp { public int code; public long uid; public int elo; public string token; }
-[Serializable] public class MatchFoundPush { public long room_id; public long opp_uid; public int opp_elo; }
+[Serializable] public class LoginResp { public int code; public long uid; public string nickname; public int elo; public string token; }
+[Serializable] public class SetNicknameReq { public string nickname; }
+[Serializable] public class SetNicknameResp { public int code; public string nickname; }
+[Serializable] public class MatchFoundPush { public long room_id; public long opp_uid; public string opp_nickname; public int opp_elo; }
 [Serializable] public class FriendAddReq { public long friend_uid; }
 [Serializable] public class FriendDelReq { public long friend_uid; }
-[Serializable] public class FriendInfo { public long uid; public int elo; public bool online; }
+[Serializable] public class FriendInfo { public long uid; public string nickname; public int elo; public bool online; }
 [Serializable] public class FriendListResp { public int code; public FriendInfo[] friends; }
-[Serializable] public class ProfileResp { public int code; public long uid; public int elo; public int max_elo; public int wins; public int losses; }
+[Serializable] public class ProfileResp { public int code; public long uid; public string nickname; public int elo; public int max_elo; public int wins; public int losses; }
 
 public static class Json
 {
@@ -393,6 +397,7 @@ git -C "E:\unity_xiangmu\SignalDrift" commit -m "feat(net): 消息DTO与Go端JSO
 public class NetworkClient : MonoBehaviour {   // DontDestroyOnLoad 单例 NetworkClient.I
     public bool Connected { get; }
     public long Uid;          // 登录后由 LoginController 写入
+    public string Nickname;   // 玩家显示名（登录/设名后写入，战斗场景读取）
     public string ReconnectToken;
     public void Connect(string host, int port, Action<bool> onResult);
     public void Send<T>(ushort msgId, T body);   // 自动 seq 自增
@@ -579,8 +584,9 @@ git -C "E:\unity_xiangmu\SignalDrift" commit -m "feat(net): TCP客户端单例�
 场景搭建（Editor 手工，步骤明确）：
 1. 新建场景 Login：Canvas(Scale With Screen Size 1920×1080) + 背景 Image(#0B0F1A)
 2. 中央垂直布局：标题 TMP"SIGNAL DRIFT"(#22D3EE, 72pt)、输入框 username、输入框 password(Content Type: Password)、按钮【登录】、按钮【注册】、状态文本 statusText(#F87171)
-3. 空物体 `Network` 挂 NetworkClient；空物体 `LoginUI` 挂 LoginController 并拖引用
-4. Build Settings 加入 Login/Lobby/Battle 三场景，Login 为 0
+3. 设名面板 nicknamePanel（默认隐藏）：内含昵称输入框 nicknameInput + 【确认昵称】按钮 confirmNicknameButton——首次登录（服务端返回 nickname 为空）时显示，玩家输入游戏内显示名
+4. 空物体 `Network` 挂 NetworkClient；空物体 `LoginUI` 挂 LoginController 并拖引用（含 nicknamePanel/nicknameInput/confirmNicknameButton）
+5. Build Settings 加入 Login/Lobby/Battle 三场景，Login 为 0
 
 - [ ] **Step 1: `UiTheme.cs`**
 
@@ -612,6 +618,9 @@ public class LoginController : MonoBehaviour
     [SerializeField] private Button loginButton;
     [SerializeField] private Button registerButton;
     [SerializeField] private TMP_Text statusText;
+    [SerializeField] private GameObject nicknamePanel;       // 首次登录设名面板（默认隐藏）
+    [SerializeField] private TMP_InputField nicknameInput;
+    [SerializeField] private Button confirmNicknameButton;
 
     [SerializeField] private string host = "127.0.0.1";
     [SerializeField] private int port = 8080;
@@ -633,8 +642,25 @@ public class LoginController : MonoBehaviour
             var r = Json.De<LoginResp>(body);
             if (r.code != 0) { statusText.text = $"登录失败({r.code})"; return; }
             NetworkClient.I.Uid = r.uid;
+            NetworkClient.I.Nickname = r.nickname;
             NetworkClient.I.ReconnectToken = r.token;
+            if (string.IsNullOrEmpty(r.nickname))
+                nicknamePanel.SetActive(true); // 首次登录未设名：弹设名面板
+            else
+                SceneManager.LoadScene("Lobby");
+        });
+        d.On(MsgId.SetNicknameOK, body =>
+        {
+            var r = Json.De<SetNicknameResp>(body);
+            if (r.code != 0) { statusText.text = "昵称需 1-16 字符"; return; }
+            NetworkClient.I.Nickname = r.nickname;
             SceneManager.LoadScene("Lobby");
+        });
+        confirmNicknameButton.onClick.AddListener(() =>
+        {
+            var nick = nicknameInput.text.Trim();
+            if (nick.Length < 1) { statusText.text = "请输入昵称"; return; }
+            NetworkClient.I.Send(MsgId.SetNickname, new SetNicknameReq { nickname = nick });
         });
     }
 
@@ -667,6 +693,7 @@ public class LoginController : MonoBehaviour
         var d = NetworkClient.I?.Dispatcher;
         d?.Off(MsgId.RegisterResp);
         d?.Off(MsgId.LoginResp);
+        d?.Off(MsgId.SetNicknameOK);
     }
 }
 ```
@@ -706,7 +733,9 @@ public static class BattleContext
 {
     public static long RoomId;
     public static long OpponentUid;
+    public static string OpponentNickname;
     public static int OpponentElo;
+    public static string MyNickname;   // = NetworkClient.I.Nickname，战斗 HUD 显示自己名字
 }
 ```
 
@@ -751,7 +780,7 @@ public class LobbyController : MonoBehaviour
         d.On(MsgId.ProfileResp, body =>
         {
             var p = Json.De<ProfileResp>(body);
-            profileText.text = $"UID {p.uid}\nELO {p.elo}  (最高 {p.max_elo})\n{p.wins}胜 {p.losses}负";
+            profileText.text = $"{p.nickname}\nELO {p.elo}  (最高 {p.max_elo})\n{p.wins}胜 {p.losses}负";
         });
         d.On(MsgId.MatchResp, body =>
         {
@@ -765,7 +794,9 @@ public class LobbyController : MonoBehaviour
             var mf = Json.De<MatchFoundPush>(body);
             BattleContext.RoomId = mf.room_id;
             BattleContext.OpponentUid = mf.opp_uid;
+            BattleContext.OpponentNickname = mf.opp_nickname;
             BattleContext.OpponentElo = mf.opp_elo;
+            BattleContext.MyNickname = NetworkClient.I.Nickname;
             SceneManager.LoadScene("Battle");
         });
         d.On(MsgId.FriendAddOK, _ => NetworkClient.I.SendEmpty(MsgId.FriendList));
@@ -775,7 +806,7 @@ public class LobbyController : MonoBehaviour
             var sb = new StringBuilder();
             if (fl.friends != null)
                 foreach (var f in fl.friends)
-                    sb.AppendLine($"{(f.online ? "●" : "○")} UID {f.uid}  ELO {f.elo}");
+                    sb.AppendLine($"{(f.online ? "●" : "○")} {f.nickname}  ELO {f.elo}");
             friendListText.text = sb.Length > 0 ? sb.ToString() : "暂无好友";
         });
 
@@ -843,6 +874,7 @@ git -C "E:\unity_xiangmu\SignalDrift" commit -m "feat(ui): 大厅场景——匹
 
 ## Self-Review 结果
 
-1. **规格覆盖**（客户端大厅侧）：连接/心跳(T4)、注册登录(T5)、匹配与取消(T6)、好友与在线状态(T6)、档案展示(T6)、匹配成功进房占位(T6)。战斗输入采集/插值渲染/涂色贴图/结算面板按用户指定顺序归计划 4；断线重连 UI（Token 重入房间）依赖房间服务，也在计划 4。
-2. **占位符扫描**：无 TBD；场景搭建步骤为 Editor 手工操作清单（Unity 场景无法用代码块表达，已给出精确控件层级与引用关系）。
-3. **类型一致性**：MsgId 数值与计划 2 的 Go 常量逐一核对一致；DTO 字段名=Go JSON tag（下划线命名决策已注明原因）；`Json.Ser/De` 全局唯一序列化入口。
+1. **规格覆盖**（客户端大厅侧）：连接/心跳(T4)、注册登录(T5)、首次登录设名流程(T5)、匹配与取消(T6)、好友与在线状态显示昵称(T6)、档案展示昵称(T6)、匹配成功存双方昵称入房占位(T6)。战斗输入采集/插值渲染/涂色贴图/结算面板按用户指定顺序归计划 4；断线重连 UI（Token 重入房间）依赖房间服务，也在计划 4。
+2. **昵称**：登录返回 nickname 为空时弹 nicknamePanel 让玩家自设显示名（MsgSetNickname）；Nickname 存于 NetworkClient.I 并随 BattleContext 传入战斗场景；档案/好友/对手均显示昵称不再是 UID。
+3. **占位符扫描**：无 TBD；场景搭建步骤为 Editor 手工操作清单（Unity 场景无法用代码块表达，已给出精确控件层级与引用关系）。
+4. **类型一致性**：MsgId 数值与计划 2 的 Go 常量逐一核对一致（含 SetNickname=232/233、EloUpdate=234）；DTO 字段名=Go JSON tag（下划线命名决策已注明原因）；`Json.Ser/De` 全局唯一序列化入口。

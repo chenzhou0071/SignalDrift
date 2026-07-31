@@ -12,12 +12,12 @@
 
 ## Global Constraints
 
-- 代码根目录：`E:\pro\unity(游戏)\server\`，Go module 名 `signaldrift/server`
+- 代码根目录：`E:\pro\SignalDrift\server\`，Go module 名 `signaldrift/server`
 - 仅 Go 标准库，不引入任何第三方依赖
 - 字节序：**大端序**（网络字节序），Unity 客户端后续按此实现
 - 帧格式：`magic(2B)=0x5344 | msgID(2B) | seq(4B) | bodyLen(4B) | body`，头 12 字节，body 上限 64KB
 - 所有数值阈值从 `configs/server.json` 读取，代码无硬编码
-- 每个 Task 结束必须 `go test ./...` 全绿再 commit；commit 在仓库 `E:\pro\unity(游戏)` 执行
+- 每个 Task 结束必须 `go test ./...` 全绿再 commit；commit 在仓库 `E:\pro\SignalDrift` 执行
 - 测试需要可控时间时，一律注入 `now func()`，禁止 `time.Sleep` 式脆弱测试（集成测试的短暂等待除外）
 
 ## File Structure
@@ -54,7 +54,7 @@ server/
 - [ ] **Step 1: 初始化 module 与配置文件**
 
 ```bash
-cd "E:\pro\unity(游戏)\server"; go mod init signaldrift/server
+cd "E:\pro\SignalDrift\server"; go mod init signaldrift/server
 ```
 
 创建 `server/configs/server.json`：
@@ -161,8 +161,8 @@ func Load(path string) (*ServerConfig, error) {
 Run: `go test ./... -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server
-git -C "E:\pro\unity(游戏)" commit -m "feat(server): go module 脚手架与网关配置加载"
+git -C "E:\pro\SignalDrift" add server
+git -C "E:\pro\SignalDrift" commit -m "feat(server): go module 脚手架与网关配置加载"
 ```
 
 ---
@@ -278,8 +278,8 @@ func Encode(f *Frame) []byte {
 Run: `go test ./... -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server/internal/protocol
-git -C "E:\pro\unity(游戏)" commit -m "feat(protocol): 二进制帧编码与消息ID表"
+git -C "E:\pro\SignalDrift" add server/internal/protocol
+git -C "E:\pro\SignalDrift" commit -m "feat(protocol): 二进制帧编码与消息ID表"
 ```
 
 ---
@@ -391,8 +391,8 @@ func (fr *FrameReader) Next() (*Frame, error) {
 Run: `go test ./... -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server/internal/protocol
-git -C "E:\pro\unity(游戏)" commit -m "feat(protocol): FrameReader 粘包分包读取"
+git -C "E:\pro\SignalDrift" add server/internal/protocol
+git -C "E:\pro\SignalDrift" commit -m "feat(protocol): FrameReader 粘包分包读取"
 ```
 
 ---
@@ -637,8 +637,8 @@ func (m *SessionManager) Range(fn func(*Session) bool) {
 Run: `go test ./... -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server/internal/gateway
-git -C "E:\pro\unity(游戏)" commit -m "feat(gateway): Session 会话与管理器、序列号幂等过滤"
+git -C "E:\pro\SignalDrift" add server/internal/gateway
+git -C "E:\pro\SignalDrift" commit -m "feat(gateway): Session 会话与管理器、序列号幂等过滤"
 ```
 
 ---
@@ -790,8 +790,8 @@ func (l *IPLimiter) Allow(ip string) bool {
 Run: `go test ./... -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server/internal/gateway
-git -C "E:\pro\unity(游戏)" commit -m "feat(gateway): 令牌桶与按IP限流器"
+git -C "E:\pro\SignalDrift" add server/internal/gateway
+git -C "E:\pro\SignalDrift" commit -m "feat(gateway): 令牌桶与按IP限流器"
 ```
 
 ---
@@ -903,8 +903,8 @@ func (w *HeartbeatWatcher) Run(ctx context.Context, interval time.Duration) {
 Run: `go test ./... -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server/internal/gateway
-git -C "E:\pro\unity(游戏)" commit -m "feat(gateway): 心跳超时扫描器"
+git -C "E:\pro\SignalDrift" add server/internal/gateway
+git -C "E:\pro\SignalDrift" commit -m "feat(gateway): 心跳超时扫描器"
 ```
 
 ---
@@ -1018,8 +1018,8 @@ func (r *Router) UnknownCount() uint64 { return r.unknown.Load() }
 Run: `go test ./... -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server/internal/gateway
-git -C "E:\pro\unity(游戏)" commit -m "feat(gateway): 消息路由器"
+git -C "E:\pro\SignalDrift" add server/internal/gateway
+git -C "E:\pro\SignalDrift" commit -m "feat(gateway): 消息路由器"
 ```
 
 ---
@@ -1274,8 +1274,8 @@ func (srv *Server) Stop() {
 Run: `go test ./... -race -v` → PASS
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server/internal/gateway
-git -C "E:\pro\unity(游戏)" commit -m "feat(gateway): TCP接入层集成——读写循环/限流断连/心跳应答"
+git -C "E:\pro\SignalDrift" add server/internal/gateway
+git -C "E:\pro\SignalDrift" commit -m "feat(gateway): TCP接入层集成——读写循环/限流断连/心跳应答"
 ```
 
 ---
@@ -1347,7 +1347,7 @@ Run: `go build ./...` → 编译通过
 - [ ] **Step 3: 手动冒烟**
 
 ```bash
-cd "E:\pro\unity(游戏)\server"; go run ./cmd/gateway
+cd "E:\pro\SignalDrift\server"; go run ./cmd/gateway
 ```
 
 Expected: 打印 `INFO gateway listening on [::]:8080`（或 0.0.0.0:8080）；Ctrl+C 后打印 `INFO gateway stopped` 且进程干净退出。
@@ -1355,8 +1355,8 @@ Expected: 打印 `INFO gateway listening on [::]:8080`（或 0.0.0.0:8080）；C
 - [ ] **Step 4: 提交**
 
 ```bash
-git -C "E:\pro\unity(游戏)" add server
-git -C "E:\pro\unity(游戏)" commit -m "feat(gateway): 进程入口与优雅关闭"
+git -C "E:\pro\SignalDrift" add server
+git -C "E:\pro\SignalDrift" commit -m "feat(gateway): 进程入口与优雅关闭"
 ```
 
 ---
