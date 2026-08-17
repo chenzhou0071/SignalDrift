@@ -77,3 +77,13 @@ func TestCloseIdempotent(t *testing.T) {
 		t.Fatal("Done should be closed")
 	}
 }
+
+func TestSendRejectsOversizedBody(t *testing.T) {
+	_, s := newTestSession(t)
+	if s.Send(1, make([]byte, protocol.MaxBodySize+1)) {
+		t.Fatal("oversized body must not be enqueued")
+	}
+	if !s.Send(1, make([]byte, protocol.MaxBodySize)) {
+		t.Fatal("body at MaxBodySize must be accepted")
+	}
+}

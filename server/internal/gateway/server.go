@@ -12,13 +12,14 @@ import (
 )
 
 type Server struct {
-	cfg      *config.ServerConfig
-	router   *Router
-	mgr      *SessionManager
-	limiter  *IPLimiter
-	listener net.Listener
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
+	cfg        *config.ServerConfig
+	router     *Router
+	mgr        *SessionManager
+	limiter    *IPLimiter
+	listener   net.Listener
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
+	acceptDone chan struct{}
 }
 
 func NewServer(cfg *config.ServerConfig, router *Router) *Server {
@@ -58,8 +59,13 @@ func (srv *Server) Start() error {
 		watcher.Run(ctx, time.Duration(srv.cfg.Heartbeat.SweepSec)*time.Second)
 	}()
 
+	acceptDone := make(chan struct{})
+	srv.acceptDone = acceptDone
 	srv.wg.Add(1)
-	go srv.acceptLoop()
+	go func() {
+		defer close(acceptDone) // acceptLoop 退出后，Stop 才可确定不会再有新 session
+		srv.acceptLoop()
+	}()
 	return nil
 }
 
@@ -68,7 +74,13 @@ func (srv *Server) acceptLoop() {
 	for {
 		conn, err := srv.listener.Accept()
 		if err != nil {
-			return // 监听器已关闭
+			// 瞬时错误（如 accept 超时）：重试而非退出
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				continue
+			}
+			// 其余错误：监听器已关闭（Stop 路径）或致命错误，退出
+			log.Printf("WARN accept error: %v", err)
+			return
 		}
 		if srv.mgr.Count() >= srv.cfg.MaxConns {
 			log.Printf("WARN max conns reached, reject %s", conn.RemoteAddr())
@@ -130,6 +142,10 @@ func (srv *Server) Stop() {
 	}
 	if srv.listener != nil {
 		srv.listener.Close()
+	}
+	// 等 acceptLoop 退出：此后不会再有新 session，Range 快照不漏关
+	if srv.acceptDone != nil {
+		<-srv.acceptDone
 	}
 	srv.mgr.Range(func(s *Session) bool { s.Close(); return true })
 	srv.wg.Wait()

@@ -21,6 +21,9 @@ type Session struct {
 }
 
 func (s *Session) Send(msgID uint16, body []byte) bool {
+	if len(body) > protocol.MaxBodySize {
+		return false // 超协议上限：不编码、不 panic
+	}
 	raw := protocol.Encode(&protocol.Frame{MsgID: msgID, Body: body})
 	select {
 	case s.sendCh <- raw:

@@ -1,6 +1,8 @@
 package gateway
 
 import (
+	"errors"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -67,7 +69,7 @@ func TestDuplicateSeqDropped(t *testing.T) {
 func TestRateLimitKick(t *testing.T) {
 	srv := startTestServer(t, 1, 2) // 极小限额
 	c := dial(t, srv)
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 3; i++ {
 		c.Write(protocol.Encode(&protocol.Frame{MsgID: protocol.MsgHeartbeat, Seq: uint32(i)}))
 	}
 	// 超限后服务端应断开：持续读最终得到错误
@@ -75,7 +77,34 @@ func TestRateLimitKick(t *testing.T) {
 	fr := protocol.NewFrameReader(c)
 	for {
 		if _, err := fr.Next(); err != nil {
-			return // 连接被服务端关闭，符合预期
+			if errors.Is(err, io.EOF) {
+				return // 服务端主动关闭连接，符合预期
+			}
+			t.Fatalf("expected kick (EOF), got %v", err)
 		}
+	}
+}
+func TestStopClosesAllConns(t *testing.T) {
+	srv := startTestServer(t, 100, 100)
+	c := dial(t, srv)
+	// 确认连接已建立并被服务端处理
+	c.Write(protocol.Encode(&protocol.Frame{MsgID: protocol.MsgHeartbeat, Seq: 1}))
+	c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := protocol.NewFrameReader(c).Next(); err != nil {
+		t.Fatalf("heartbeat ack: %v", err)
+	}
+	// Stop 必须正常返回（不挂起）
+	done := make(chan struct{})
+	go func() { srv.Stop(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Stop() hung")
+	}
+	// 已建立连接被服务端关闭：读到 EOF
+	buf := make([]byte, 1)
+	c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := c.Read(buf); !errors.Is(err, io.EOF) {
+		t.Fatalf("expected EOF after Stop, got %v", err)
 	}
 }
