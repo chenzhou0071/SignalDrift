@@ -1,0 +1,7 @@
+{
+  "listen_addr": "0.0.0.0:8080",
+  "max_conns": 2000,
+  "send_queue_size": 256,
+  "ip_rate": { "rate": 100, "burst": 200 },
+  "heartbeat": { "interval_sec": 5, "timeout_sec": 15, "sweep_sec": 1 }
+}
