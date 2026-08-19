@@ -1,0 +1,8 @@
+{
+  "mysql_dsn": "root:YOUR_PASSWORD@tcp(127.0.0.1:3306)/signaldrift?parseTime=true&charset=utf8mb4",
+  "token_secret": "dev-secret-change-in-prod",
+  "token_ttl_sec": 86400,
+  "match": { "base_gap": 100, "gap_step": 100, "widen_sec": 30 },
+  "elo_k": 32,
+  "queue_size": 1024
+}
