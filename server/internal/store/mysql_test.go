@@ -23,6 +23,16 @@ func mustMySQL(t *testing.T) *MySQLStore {
 
 func randName() string { return fmt.Sprintf("u%d", rand.Int63()) }
 
+// cleanupUser 注册 t.Cleanup：测试结束删除自己创建的数据（防开发库堆积）
+func cleanupUser(t *testing.T, s *MySQLStore, uid int64) {
+	t.Helper()
+	t.Cleanup(func() {
+		s.db.Exec("DELETE FROM user_friend WHERE uid=? OR friend_uid=?", uid, uid)
+		s.db.Exec("DELETE FROM user_profile WHERE uid=?", uid)
+		s.db.Exec("DELETE FROM user WHERE uid=?", uid)
+	})
+}
+
 func TestMySQLUserLifecycle(t *testing.T) {
 	s := mustMySQL(t)
 	name := randName()
@@ -30,6 +40,7 @@ func TestMySQLUserLifecycle(t *testing.T) {
 	if err != nil || uid == 0 {
 		t.Fatalf("uid=%d err=%v", uid, err)
 	}
+	cleanupUser(t, s, uid)
 	if _, err := s.CreateUser(name, "hash2"); err != ErrDuplicate {
 		t.Fatalf("want dup got %v", err)
 	}
@@ -43,6 +54,8 @@ func TestMySQLProfileAndFriend(t *testing.T) {
 	s := mustMySQL(t)
 	a, _ := s.CreateUser(randName(), "h")
 	b, _ := s.CreateUser(randName(), "h")
+	cleanupUser(t, s, a)
+	cleanupUser(t, s, b)
 	p, err := s.GetProfile(a)
 	if err != nil || p.Elo != 1000 {
 		t.Fatalf("p=%+v err=%v", p, err)
@@ -69,6 +82,7 @@ func TestMySQLProfileAndFriend(t *testing.T) {
 func TestMySQLSetNickname(t *testing.T) {
 	s := mustMySQL(t)
 	uid, _ := s.CreateUser(randName(), "h")
+	cleanupUser(t, s, uid)
 	if err := s.SetNickname(uid, "小明"); err != nil { // utf8mb4 中文
 		t.Fatal(err)
 	}
