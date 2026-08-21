@@ -85,6 +85,20 @@ func TestRateLimitKick(t *testing.T) {
 		}
 	}
 }
+func TestOnSessionClosedCallback(t *testing.T) {
+	srv := startTestServer(t, 100, 100)
+	closed := make(chan uint64, 1)
+	srv.SetOnSessionClosed(func(s *Session) { closed <- s.ID })
+	c := dial(t, srv)
+	c.Write(protocol.Encode(&protocol.Frame{MsgID: protocol.MsgHeartbeat, Seq: 1}))
+	c.Close()
+	select {
+	case <-closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("callback not fired")
+	}
+}
+
 func TestStopClosesAllConns(t *testing.T) {
 	srv := startTestServer(t, 100, 100)
 	c := dial(t, srv)

@@ -21,6 +21,7 @@ type Server struct {
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
 	acceptDone chan struct{}
+	onClosed   func(*Session)
 }
 
 func NewServer(cfg *config.ServerConfig, router *Router) *Server {
@@ -132,9 +133,16 @@ func (srv *Server) writeLoop(s *Session, conn net.Conn) {
 	}
 }
 
+// SetOnSessionClosed 注入断连回调：会话 teardown 时调用（大厅解绑/匹配清理用）
+// 须在 Start() 前调用（非并发安全）
+func (srv *Server) SetOnSessionClosed(fn func(*Session)) { srv.onClosed = fn }
+
 func (srv *Server) teardown(s *Session) {
 	s.Close()
 	srv.mgr.Remove(s.ID)
+	if srv.onClosed != nil {
+		srv.onClosed(s)
+	}
 }
 
 func (srv *Server) Stop() {
