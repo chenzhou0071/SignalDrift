@@ -1,3 +1,4 @@
+// service_test.go — 大厅业务测试：注册登录/好友/档案/昵称/中文用户名边界/踢旧会话（走真实 Router 分发）
 package lobby
 
 import (

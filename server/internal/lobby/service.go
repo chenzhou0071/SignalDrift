@@ -1,10 +1,14 @@
+// service.go — 大厅业务层：注册/登录/好友/档案/昵称/匹配 handlers、authed 鉴权中间件、撮合循环与断连清理
 package lobby
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -21,12 +25,20 @@ type Service struct {
 	pres   *Presence
 	eq     *EventQueue
 	tokens *TokenIssuer
+	// 房间分配：计划 4 注入真实分配，本计划默认自增 stub
+	allocRoom  func(MatchPair) (int64, error)
+	stubRoomID atomic.Int64
 }
 
 func NewService(cfg *config.LobbyConfig, st store.Store, pool *MatchPool,
 	pres *Presence, eq *EventQueue, tokens *TokenIssuer) *Service {
-	return &Service{cfg: cfg, st: st, pool: pool, pres: pres, eq: eq, tokens: tokens}
+	svc := &Service{cfg: cfg, st: st, pool: pool, pres: pres, eq: eq, tokens: tokens}
+	svc.allocRoom = func(MatchPair) (int64, error) { return svc.stubRoomID.Add(1), nil }
+	return svc
 }
+
+// SetRoomAllocator 注入房间分配器：仅可在 RunMatchLoop 启动前调用（非并发安全）
+func (svc *Service) SetRoomAllocator(fn func(MatchPair) (int64, error)) { svc.allocRoom = fn }
 
 func reply(s *gateway.Session, msgID uint16, v any) {
 	body, err := json.Marshal(v)
@@ -49,7 +61,8 @@ func (svc *Service) Mount(r *gateway.Router) {
 	r.Register(protocol.MsgFriendList, svc.authed(svc.handleFriendList))
 	r.Register(protocol.MsgProfileReq, svc.authed(svc.handleProfile))
 	r.Register(protocol.MsgSetNickname, svc.authed(svc.handleSetNickname))
-	// 匹配 handlers 在 Task 8 挂载
+	r.Register(protocol.MsgMatchReq, svc.authed(svc.handleMatchReq))
+	r.Register(protocol.MsgMatchCancel, svc.authed(svc.handleMatchCancel))
 }
 
 func (svc *Service) authed(h gateway.HandlerFunc) gateway.HandlerFunc {
@@ -204,13 +217,77 @@ func (svc *Service) handleSetNickname(s *gateway.Session, f *protocol.Frame) {
 }
 
 // OnSessionClosed 网关断连回调：清理在线状态与匹配池
-// 注：pool.Cancel 按 UID 取消、无会话归属校验——Task 8 挂载匹配 handler 时需
-// 保证入池/取消与 Presence 同样带 cur==s 语义，防旧会话断连回调误伤新会话匹配项
 func (svc *Service) OnSessionClosed(s *gateway.Session) {
 	if s.UID != 0 {
 		if cur, ok := svc.pres.Get(s.UID); ok && cur == s {
 			svc.pres.Unbind(s.UID)
+			svc.pool.Cancel(s.UID) // 仅当仍是当前会话时才取消匹配（旧会话回调不误伤新会话）
 		}
-		svc.pool.Cancel(s.UID)
+	}
+}
+
+func (svc *Service) handleMatchReq(s *gateway.Session, f *protocol.Frame) {
+	p, err := svc.st.GetProfile(s.UID)
+	if err != nil {
+		reply(s, protocol.MsgMatchResp, ErrorResp{Code: 500})
+		return
+	}
+	if !svc.pool.Add(s.UID, p.Elo) {
+		reply(s, protocol.MsgMatchResp, ErrorResp{Code: 409, Msg: "already in pool"})
+		return
+	}
+	reply(s, protocol.MsgMatchResp, ErrorResp{Code: 0})
+}
+
+func (svc *Service) handleMatchCancel(s *gateway.Session, f *protocol.Frame) {
+	if svc.pool.Cancel(s.UID) {
+		reply(s, protocol.MsgMatchCancelOK, ErrorResp{Code: 0})
+	} else {
+		reply(s, protocol.MsgMatchCancelOK, ErrorResp{Code: 404})
+	}
+}
+
+func (svc *Service) pollMatchesOnce() {
+	for _, pair := range svc.pool.Poll() {
+		roomID, err := svc.allocRoom(pair)
+		if err != nil {
+			log.Printf("ERROR alloc room: %v", err)
+			// 分配失败：双方放回池
+			svc.pool.Add(pair.UIDA, pair.EloA)
+			svc.pool.Add(pair.UIDB, pair.EloB)
+			continue
+		}
+		// 已知语义：Poll 与推送之间断线的玩家，房间已分配、推送静默丢失，
+		// 重连后需重新入池（计划 4 接真实分配器时考虑在线性前移/释放房间）
+		nickA, nickB := "", ""
+		if u, e := svc.st.GetUser(pair.UIDA); e == nil {
+			nickA = u.Nickname
+		}
+		if u, e := svc.st.GetUser(pair.UIDB); e == nil {
+			nickB = u.Nickname
+		}
+		if sa, ok := svc.pres.Get(pair.UIDA); ok {
+			reply(sa, protocol.MsgMatchFound, MatchFoundPush{RoomID: roomID, OpponentUID: pair.UIDB, OppNickname: nickB, OppElo: pair.EloB})
+		}
+		if sb, ok := svc.pres.Get(pair.UIDB); ok {
+			reply(sb, protocol.MsgMatchFound, MatchFoundPush{RoomID: roomID, OpponentUID: pair.UIDA, OppNickname: nickA, OppElo: pair.EloA})
+		}
+		log.Printf("INFO match found room=%d a=%d b=%d", roomID, pair.UIDA, pair.UIDB)
+	}
+}
+
+func (svc *Service) RunMatchLoop(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		interval = time.Second // 防 time.NewTicker panic
+	}
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			svc.pollMatchesOnce()
+		}
 	}
 }
