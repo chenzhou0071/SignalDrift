@@ -1,3 +1,4 @@
+// heartbeat_test.go — 心跳巡逻测试：假时钟驱动超时踢人
 package gateway
 
 import (

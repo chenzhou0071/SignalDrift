@@ -1,3 +1,4 @@
+// elo.go — ELO 计算：标准公式（分差 400 基准），胜者零和、平局按期望差调整
 package lobby
 
 import "math"

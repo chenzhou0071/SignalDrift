@@ -1,3 +1,4 @@
+// ratelimit_test.go — 限流测试：假时钟验证桶恢复/超限拒绝/IP 隔离
 package gateway
 
 import (

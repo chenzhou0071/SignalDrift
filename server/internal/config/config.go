@@ -1,3 +1,4 @@
+// config.go — 网关配置：ServerConfig 结构、加载与校验（监听/连接数/队列/限流/心跳）
 package config
 
 import (

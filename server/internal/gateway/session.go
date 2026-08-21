@@ -1,3 +1,4 @@
+// session.go — 会话层：一个连接一个 Session；异步发送队列、心跳时间戳、seq 幂等过滤
 package gateway
 
 import (

@@ -1,3 +1,4 @@
+// frame.go — 二进制帧编解码：12 字节头（magic/msgID/seq/bodyLen）+ body，64KB 上限，大端序
 package protocol
 
 import (

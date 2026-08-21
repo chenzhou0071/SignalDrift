@@ -1,3 +1,4 @@
+// memstore.go — 内存 fake 实现：互斥锁 + 双索引，出参拷贝防竞态（单测用）
 package store
 
 import "sync"

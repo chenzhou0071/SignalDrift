@@ -1,3 +1,4 @@
+-- schema.sql — 建表脚本：user/user_profile/user_friend/game_match_history（utf8mb4，幂等执行）
 CREATE DATABASE IF NOT EXISTS signaldrift DEFAULT CHARACTER SET utf8mb4;
 USE signaldrift;
 

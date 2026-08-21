@@ -1,3 +1,4 @@
+// config_test.go — 网关配置加载测试：正常/缺文件/非法值（表驱动）
 package config
 
 import (

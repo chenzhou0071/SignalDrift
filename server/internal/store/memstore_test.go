@@ -1,3 +1,4 @@
+// memstore_test.go — 内存实现测试：用户生命周期/ELO 档案流转/好友增删查
 package store
 
 import "testing"

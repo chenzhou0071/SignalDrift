@@ -1,3 +1,4 @@
+// match.go — 匹配池：ELO 排序相邻贪心配对，等待每满 WidenSec 放宽分差；取消/去重；时钟回拨不收紧
 package lobby
 
 import (

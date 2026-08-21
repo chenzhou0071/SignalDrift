@@ -1,3 +1,4 @@
+// server.go — TCP 接入层：accept、每连接读写循环、限流断连、心跳应答、优雅关闭（Stop 关停竞态防护）
 package gateway
 
 import (

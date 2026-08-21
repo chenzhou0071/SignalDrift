@@ -1,3 +1,4 @@
+// presence.go — 在线索引：UID → Session，RWMutex 并发安全
 package lobby
 
 import (

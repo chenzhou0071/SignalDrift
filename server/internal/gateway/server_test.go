@@ -1,3 +1,4 @@
+// server_test.go — 服务器集成测试：Echo 全链路、限流踢人、Stop 关闭所有连接
 package gateway
 
 import (

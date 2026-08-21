@@ -1,3 +1,4 @@
+// match_test.go — 匹配池测试：池内/超差/放宽/取消/重复/时钟回拨
 package lobby
 
 import (

@@ -1,3 +1,4 @@
+// frame_bench_test.go — 帧编解码性能基准（BenchmarkEncode/BenchmarkDecode）
 package protocol
 
 import (

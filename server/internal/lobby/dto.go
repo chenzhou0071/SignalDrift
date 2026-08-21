@@ -1,3 +1,4 @@
+// dto.go — 大厅消息体：注册/登录/匹配/好友/档案/昵称的请求应答 JSON 结构体
 package lobby
 
 type ErrorResp struct {

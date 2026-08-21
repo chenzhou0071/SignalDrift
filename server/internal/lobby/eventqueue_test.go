@@ -1,3 +1,4 @@
+// eventqueue_test.go — 结算队列测试：结算全链路/Stop 幂等/Stop 后 Push 不 panic
 package lobby
 
 import (

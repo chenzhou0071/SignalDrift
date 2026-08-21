@@ -1,3 +1,4 @@
+// token.go — 重连 Token：HMAC-SHA256 签发/验证（uid.expiry.hexhmac），恒定时间比较防时序侧信道
 package lobby
 
 import (

@@ -1,5 +1,6 @@
 //go:build integration
 
+// mysql_test.go — MySQL 集成测试（integration tag）：真库 3 用例，t.Cleanup 清理数据防堆积
 package store
 
 import (

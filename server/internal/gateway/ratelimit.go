@@ -1,3 +1,4 @@
+// ratelimit.go — 限流：令牌桶 + 每 IP 独立桶（懒创建、只建不删，见博客风险说明）
 package gateway
 
 import (

@@ -1,3 +1,4 @@
+// router.go — 消息路由：msgID → HandlerFunc 注册与分发（按消息号分区）
 package gateway
 
 import (

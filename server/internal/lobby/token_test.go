@@ -1,3 +1,4 @@
+// token_test.go — Token 测试：roundtrip/过期/边界/畸形防 panic/篡改
 package lobby
 
 import "testing"

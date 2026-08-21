@@ -1,3 +1,4 @@
+// lobby_test.go — 大厅配置加载测试：全字段断言/缺文件/非法值（表驱动）
 package config
 
 import (

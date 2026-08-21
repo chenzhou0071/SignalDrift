@@ -1,3 +1,4 @@
+// frame_test.go — 帧编解码测试：往返/粘包分包/超限/畸形输入
 package protocol
 
 import (

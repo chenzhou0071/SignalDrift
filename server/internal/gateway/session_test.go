@@ -1,3 +1,4 @@
+// session_test.go — 会话测试：发送队列/超限拒绝/seq 幂等/心跳刷新
 package gateway
 
 import (

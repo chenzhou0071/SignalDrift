@@ -1,3 +1,4 @@
+// mysql.go — MySQL 实现：1062→ErrDuplicate、无行→ErrNotFound，SetNickname 与 MemStore 语义一致
 package store
 
 import (

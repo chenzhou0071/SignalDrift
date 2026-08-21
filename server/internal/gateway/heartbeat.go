@@ -1,3 +1,4 @@
+// heartbeat.go — 心跳监督：定时巡逻，踢掉超过超时未心跳的连接（Sweep）
 package gateway
 
 import (

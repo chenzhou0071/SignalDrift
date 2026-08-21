@@ -1,3 +1,4 @@
+// store.go — 存储抽象：Store 接口（10 方法）、领域结构体、哨兵错误（ErrDuplicate/ErrNotFound）
 package store
 
 import "errors"

@@ -1,3 +1,4 @@
+// router_test.go — 路由测试：注册/分发/未注册处理
 package gateway
 
 import (

@@ -1,3 +1,4 @@
+// elo_test.go — ELO 测试：等分/爆冷/平局（含零和断言）
 package lobby
 
 import "testing"

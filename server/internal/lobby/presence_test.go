@@ -1,3 +1,4 @@
+// presence_test.go — 在线索引测试：Bind/Get/IsOnline/Unbind
 package lobby
 
 import (

@@ -1,3 +1,4 @@
+// lobby.go — 大厅配置：LobbyConfig/MatchConfig 结构、加载与校验（MySQL DSN/token/匹配/ELO）
 package config
 
 import (

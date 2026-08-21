@@ -1,3 +1,4 @@
+// eventqueue.go — 异步结算队列：单 worker 读档案/算 ELO/写库/战绩入库，onElo 回调推送；Stop 幂等防 closed channel panic
 package lobby
 
 import (

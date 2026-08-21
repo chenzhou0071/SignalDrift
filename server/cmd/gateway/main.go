@@ -1,3 +1,4 @@
+// main.go — 进程入口：加载配置、起网关、监听信号、优雅关闭
 package main
 
 import (
