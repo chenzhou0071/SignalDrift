@@ -25,7 +25,7 @@ type LoginResp struct {
 	Nickname string `json:"nickname"` // 空字符串=尚未设置，客户端弹设名界面
 	Elo      int    `json:"elo"`
 	Token    string `json:"token"` // 重连 Token
-	ExpMsec  int64  `json:"exp"`
+	ExpSec   int64  `json:"exp"`   // Token 过期时间（Unix 秒）
 }
 
 // SetNicknameReq 玩家注册后自行设置/修改游戏内显示名（可中文）

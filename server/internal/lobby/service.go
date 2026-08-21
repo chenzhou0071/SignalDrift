@@ -128,7 +128,8 @@ func (svc *Service) handleLogin(s *gateway.Session, f *protocol.Frame) {
 		return
 	}
 	reply(s, protocol.MsgLoginResp, LoginResp{
-		Code: 0, UID: u.UID, Nickname: p.Nickname, Elo: p.Elo, Token: svc.tokens.Issue(u.UID),
+		Code: 0, UID: u.UID, Nickname: p.Nickname, Elo: p.Elo,
+		Token: svc.tokens.Issue(u.UID), ExpSec: svc.tokens.Expiry(),
 	})
 }
 
@@ -163,7 +164,10 @@ func (svc *Service) handleFriendDel(s *gateway.Session, f *protocol.Frame) {
 		reply(s, protocol.MsgFriendDelOK, ErrorResp{Code: 400})
 		return
 	}
-	svc.st.DelFriend(s.UID, req.FriendUID)
+	if err := svc.st.DelFriend(s.UID, req.FriendUID); err != nil {
+		reply(s, protocol.MsgFriendDelOK, ErrorResp{Code: 500})
+		return
+	}
 	reply(s, protocol.MsgFriendDelOK, ErrorResp{Code: 0})
 }
 
@@ -252,9 +256,13 @@ func (svc *Service) pollMatchesOnce() {
 		roomID, err := svc.allocRoom(pair)
 		if err != nil {
 			log.Printf("ERROR alloc room: %v", err)
-			// 分配失败：双方放回池
-			svc.pool.Add(pair.UIDA, pair.EloA)
-			svc.pool.Add(pair.UIDB, pair.EloB)
+			// 分配失败：在线者放回池（离线玩家不回池，避免被反复配对空耗房间）
+			if svc.pres.IsOnline(pair.UIDA) {
+				svc.pool.Add(pair.UIDA, pair.EloA)
+			}
+			if svc.pres.IsOnline(pair.UIDB) {
+				svc.pool.Add(pair.UIDB, pair.EloB)
+			}
 			continue
 		}
 		// 已知语义：Poll 与推送之间断线的玩家，房间已分配、推送静默丢失，

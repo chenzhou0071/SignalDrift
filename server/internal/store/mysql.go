@@ -64,9 +64,16 @@ func (s *MySQLStore) SetNickname(uid int64, nickname string) error {
 	if err != nil {
 		return err
 	}
-	// 与 MemStore 语义一致：不存在返回 ErrNotFound
+	// 与 MemStore 语义一致：不存在返回 ErrNotFound；
+	// 但 UPDATE 影响 0 行也可能是"同值更新"（无 CLIENT_FOUND_ROWS），需查存在性区分
 	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
+		var one int
+		if err := s.db.QueryRow("SELECT 1 FROM user WHERE uid=?", uid).Scan(&one); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrNotFound
+			}
+			return err // 真实 DB 故障原样返回，不误归为 ErrNotFound
+		}
 	}
 	return nil
 }

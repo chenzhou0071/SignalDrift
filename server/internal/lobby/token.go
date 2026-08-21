@@ -35,6 +35,9 @@ func (t *TokenIssuer) Issue(uid int64) string {
 	return payload + "." + t.sign(payload)
 }
 
+// Expiry 当前签发的 Token 过期时间（Unix 秒），与 Issue 使用同一时钟
+func (t *TokenIssuer) Expiry() int64 { return t.now() + t.ttl }
+
 func (t *TokenIssuer) Verify(token string) (int64, bool) {
 	parts := strings.SplitN(token, ".", 3)
 	if len(parts) != 3 {

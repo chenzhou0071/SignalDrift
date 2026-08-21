@@ -185,6 +185,9 @@ func TestRegisterLoginFlow(t *testing.T) {
 	if lg.Code != 0 || lg.UID != reg.UID || lg.Elo != 1000 || lg.Token == "" {
 		t.Fatalf("lg=%+v", lg)
 	}
+	if lg.ExpSec == 0 {
+		t.Fatalf("login exp must be set: %+v", lg)
+	}
 	if s.UID != reg.UID {
 		t.Fatal("session UID not bound")
 	}

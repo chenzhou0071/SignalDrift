@@ -95,3 +95,16 @@ func TestMySQLSetNickname(t *testing.T) {
 		t.Fatalf("want ErrNotFound got %v", err)
 	}
 }
+
+// 同值更新：MySQL UPDATE 影响 0 行，但用户存在——必须返回 nil（与 MemStore 一致）
+func TestMySQLSetNicknameSameValue(t *testing.T) {
+	s := mustMySQL(t)
+	uid, _ := s.CreateUser(randName(), "h")
+	cleanupUser(t, s, uid)
+	if err := s.SetNickname(uid, "小明"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetNickname(uid, "小明"); err != nil {
+		t.Fatalf("same-value update must be nil, got %v", err)
+	}
+}
